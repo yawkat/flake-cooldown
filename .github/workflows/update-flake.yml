@@ -1,0 +1,39 @@
+name: Update flake
+
+on:
+  workflow_dispatch:
+    inputs:
+      cooldown_days:
+        description: >-
+          Only take third-party commits at least this many days old
+          (0 for an urgent update). Inputs under yawkat/ are exempt.
+        type: number
+        default: 5
+  schedule:
+    # Off the full hour: GitHub delays or drops scheduled runs under load,
+    # and the top of the hour is the busiest.
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      # This repository's own action, at the checked-out commit.
+      - uses: ./
+        id: update
+        with:
+          cooldown-days: ${{ inputs.cooldown_days }}
+      - uses: peter-evans/create-pull-request@v8
+        with:
+          branch: update_flake_lock_action
+          delete-branch: true
+          title: flake update
+          body: ${{ steps.update.outputs.body }}

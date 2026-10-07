@@ -1,0 +1,47 @@
+name: Flake update with cooldown
+description: >-
+  Update flake.lock, pinning third-party GitHub inputs to versions at least a
+  given number of days old, and commit the result.
+
+inputs:
+  cooldown-days:
+    description: >-
+      Only take third-party commits (and nixpkgs channel releases) at least
+      this many days old. 0 for an urgent update. Empty means the default of 5,
+      so a workflow_dispatch input can be passed through on scheduled runs too.
+    default: ''
+  exempt-owner:
+    description: >-
+      GitHub owner whose inputs update to their latest commit. Empty to exempt
+      nobody.
+    default: ${{ github.repository_owner }}
+  commit-user-name:
+    description: Author and committer name of the lock file commit.
+    default: github-actions[bot]
+  commit-user-email:
+    description: Author and committer email of the lock file commit.
+    default: github-actions[bot]@users.noreply.github.com
+
+outputs:
+  body:
+    description: PR body describing the update. Empty if nothing changed.
+    value: ${{ steps.update.outputs.body }}
+
+runs:
+  using: composite
+  steps:
+    # Needs git, python3 (both on the GitHub runners) and nix (e.g. from
+    # cachix/install-nix-action), and the flake checked out in the working
+    # directory. update-flake-lock can't do this: its nix-options go before the
+    # subcommand, where nix rejects --override-input.
+    - name: Update flake.lock with a cooldown
+      id: update
+      shell: bash
+      env:
+        COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
+        EXEMPT_OWNER: ${{ inputs.exempt-owner }}
+        GIT_AUTHOR_NAME: ${{ inputs.commit-user-name }}
+        GIT_AUTHOR_EMAIL: ${{ inputs.commit-user-email }}
+        GIT_COMMITTER_NAME: ${{ inputs.commit-user-name }}
+        GIT_COMMITTER_EMAIL: ${{ inputs.commit-user-email }}
+      run: python3 "$GITHUB_ACTION_PATH/cooldown_update.py"

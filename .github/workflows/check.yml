@@ -1,0 +1,20 @@
+name: Check
+
+on:
+  push:
+  # Pushes made with GITHUB_TOKEN (e.g. by update-flake.yml) don't trigger
+  # workflows; closing and reopening the PR kicks off CI instead.
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - run: python3 -m py_compile cooldown_update.py
+      - run: nix flake check -L
