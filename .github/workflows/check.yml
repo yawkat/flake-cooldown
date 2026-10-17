@@ -3,9 +3,8 @@ name: Check
 on:
   push:
   # Pushes made with GITHUB_TOKEN (e.g. by update-flake.yml) don't trigger
-  # workflows; closing and reopening the PR kicks off CI instead.
-  pull_request:
-    types: [reopened]
+  # workflows, so update-flake.yml starts this explicitly for its branch.
+  workflow_dispatch:
 
 permissions:
   contents: read
