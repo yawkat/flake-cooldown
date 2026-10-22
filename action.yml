@@ -15,6 +15,13 @@ inputs:
       GitHub owner whose inputs update to their latest commit. Empty to exempt
       nobody.
     default: ${{ github.repository_owner }}
+  exempt-inputs:
+    description: >-
+      Names of inputs that update to their latest version regardless of owner,
+      separated by whitespace or commas. For inputs where getting security
+      fixes quickly matters more than the cooldown, e.g. nixpkgs on a stable
+      channel.
+    default: ''
   commit-user-name:
     description: Author and committer name of the lock file commit.
     default: github-actions[bot]
@@ -40,6 +47,7 @@ runs:
       env:
         COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         EXEMPT_OWNER: ${{ inputs.exempt-owner }}
+        EXEMPT_INPUTS: ${{ inputs.exempt-inputs }}
         GIT_AUTHOR_NAME: ${{ inputs.commit-user-name }}
         GIT_AUTHOR_EMAIL: ${{ inputs.commit-user-email }}
         GIT_COMMITTER_NAME: ${{ inputs.commit-user-name }}

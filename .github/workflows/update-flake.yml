@@ -6,7 +6,7 @@ on:
       cooldown_days:
         description: >-
           Only take third-party commits at least this many days old
-          (0 for an urgent update). Inputs under yawkat/ are exempt.
+          (0 for an urgent update). Inputs under yawkat/ and nixpkgs are exempt.
         type: number
         default: 5
   schedule:
@@ -31,6 +31,8 @@ jobs:
         id: update
         with:
           cooldown-days: ${{ inputs.cooldown_days }}
+          # Stable channel: security backports should not wait out the cooldown.
+          exempt-inputs: nixpkgs
       - uses: peter-evans/create-pull-request@v8
         with:
           branch: update_flake_lock_action

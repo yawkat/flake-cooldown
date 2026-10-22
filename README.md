@@ -12,6 +12,10 @@ default), so a malicious commit has time to be noticed before it is picked up.
 - Inputs of an exempt owner (by default the repository's own) update to their
   latest commit. Their own inputs, nixpkgs included, are whatever their lock
   file says, so only exempt repositories that run this cooldown themselves.
+- Inputs named in `exempt-inputs` update to their latest version. Use it for
+  inputs where security fixes matter more than the cooldown, such as nixpkgs
+  on a stable channel: its changes are reviewed backports, and the channel
+  only advances once Hydra has built them.
 - Non-GitHub inputs are updated normally.
 
 See [`cooldown_update.py`](cooldown_update.py) for details.
@@ -65,6 +69,7 @@ Inputs:
 |---|---|---|
 | `cooldown-days` | 5 | Minimum age of third-party versions. 0 for an urgent update. |
 | `exempt-owner` | repository owner | Owner whose inputs update to their latest commit. Empty for none. |
+| `exempt-inputs` | none | Input names, separated by whitespace or commas, that update to their latest version. |
 | `commit-user-name` / `commit-user-email` | `github-actions[bot]` | Identity of the lock file commit. |
 
 ## Locally
@@ -75,5 +80,5 @@ In the flake directory, with a clean `flake.lock`:
 EXEMPT_OWNER=yawkat nix run github:yawkat/flake-cooldown
 ```
 
-`COOLDOWN_DAYS` sets the cooldown. The update is committed with your git
+`COOLDOWN_DAYS` sets the cooldown, `EXEMPT_INPUTS` the exempt input names. The update is committed with your git
 identity.
