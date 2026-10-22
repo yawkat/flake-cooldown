@@ -3,7 +3,8 @@
 
 Each direct GitHub input is pinned to a version at least COOLDOWN_DAYS old, so
 a malicious commit has time to be noticed before we pick it up. Inputs owned
-by EXEMPT_OWNER (if set) update to their latest commit. Inputs pulled in
+by EXEMPT_OWNER (if set), and inputs named in EXEMPT_INPUTS (separated by
+whitespace or commas), update to their latest commit. Inputs pulled in
 through another input (e.g. llm-agents' own nixpkgs) are pinned by that
 input's lock file and so can't be newer than the commit chosen for it. For an
 exempt input, that only holds if its own repository runs this cooldown too.
@@ -120,7 +121,7 @@ def first_parent_rev(owner, repo, ref, locked, cutoff):
     return ref, rev
 
 
-def override_args(lock, cutoff, exempt_owner):
+def override_args(lock, cutoff, exempt_owner, exempt_inputs):
     nodes = lock["nodes"]
     args = []
     for name, node_name in nodes[lock["root"]]["inputs"].items():
@@ -128,6 +129,7 @@ def override_args(lock, cutoff, exempt_owner):
         original, locked = node["original"], node["locked"]
         if (
             original["type"] != "github"
+            or name in exempt_inputs
             or (exempt_owner and original["owner"].lower() == exempt_owner.lower())
         ):
             continue
@@ -146,10 +148,14 @@ def main():
     # Empty on scheduled runs, which have no workflow_dispatch inputs.
     cooldown_days = float(os.environ.get("COOLDOWN_DAYS") or "5")
     exempt_owner = os.environ.get("EXEMPT_OWNER", "")
+    exempt_inputs = re.split(r"[\s,]+", os.environ.get("EXEMPT_INPUTS", "").strip())
+    exempt_inputs = [name for name in exempt_inputs if name]
     cutoff = datetime.now(timezone.utc) - timedelta(days=cooldown_days)
 
     with open("flake.lock") as f:
         lock = json.load(f)
+    if unknown := set(exempt_inputs) - set(lock["nodes"][lock["root"]]["inputs"]):
+        sys.exit(f"EXEMPT_INPUTS names inputs the flake doesn't have: {', '.join(sorted(unknown))}")
 
     before = run("git", "rev-parse", "HEAD")
     subprocess.run(
@@ -157,7 +163,7 @@ def main():
             "nix",
             "flake",
             "update",
-            *override_args(lock, cutoff, exempt_owner),
+            *override_args(lock, cutoff, exempt_owner, exempt_inputs),
             "--commit-lock-file",
             "--option",
             "commit-lockfile-summary",
@@ -171,7 +177,9 @@ def main():
 
     changes = run("git", "log", "-1", "--format=%b")
     body = f"Third-party inputs are pinned to versions at least {cooldown_days:g} days old"
-    body += f"; {exempt_owner}/ inputs are at their latest.\n\n" if exempt_owner else ".\n\n"
+    exempt = [f"{exempt_owner}/ inputs"] if exempt_owner else []
+    exempt += [f"`{name}`" for name in exempt_inputs]
+    body += f"; {', '.join(exempt)} are at their latest.\n\n" if exempt else ".\n\n"
     body += f"```\n{changes}\n```\n"
     if output := os.environ.get("GITHUB_OUTPUT"):
         body += (
